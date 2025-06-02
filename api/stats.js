@@ -76,59 +76,31 @@ router.get('/recentLogs/:limit', (req, res) => {
 // GET : statistiques agrégées pour le dashboard
 router.get('/stats', async (req, res) => {
   try {
-    // Determine target week (previous week)
-    // Using SQLite's strftime to be consistent with how week_number might be populated
-    const targetWeekRow = await dbGetAsync("SELECT CAST(strftime('%W', 'now', 'localtime', '-7 days') AS INTEGER) AS value", []);
-    if (targetWeekRow === undefined || targetWeekRow.value === null) {
-        // This can happen at the very beginning of a year if 'now' is week 00 and '-7 days' is in previous year's week 52 or 53.
-        // Or if the database is empty / strftime behaves unexpectedly.
-        // Fallback or specific handling might be needed. For now, let's try to get previous week regardless of year.
-        // A more robust way: get current week, if it's 0 (first week), target 52/53 of prev year.
-        // Simplified: If 'now' is week 0, strftime('%W', 'now', '-7 days') might give last week of prev year.
-        // If 'now' is week 1, strftime('%W', 'now', '-7 days') gives week 0.
-        // The problem states "week_number = strftime('%W', 'now') - 1".
-        // Let's use "SELECT CAST(strftime('%W', 'now') AS INTEGER) - 1 AS value"
-        const currentWeekMinusOneRow = await dbGetAsync("SELECT CAST(strftime('%W', 'now', 'localtime') AS INTEGER) - 1 AS value", []);
-        if (currentWeekMinusOneRow === undefined || currentWeekMinusOneRow.value === null || currentWeekMinusOneRow.value < 0) {
-             // If current week is 00, then 0-1 = -1. We need to handle this by querying for week 52 or 53 of the previous year.
-             // For simplicity as per original query, we'll stick to the direct calculation,
-             // assuming week_number column handles year transitions if populated by a similar strftime.
-             // The original query was `week_number = strftime('%W', 'now') - 1`.
-             // This might be problematic if `strftime('%W', 'now')` is "00".
-             // Let's assume for now that `week_number` in the table is comparable to `strftime('%W', date)`.
-             // A direct query for target week number:
-            const targetWeekCalc = await dbGetAsync("SELECT CAST(strftime('%W', 'now', 'localtime') AS INTEGER) AS current_week_num", []);
+    
             let targetWeek;
-            if (targetWeekCalc.current_week_num === 0) {
-                // It's the first week of the year (00). Previous week was last week of prior year.
-                // Need to find actual week number of (today - 7 days).
-                const prevWeekActual = await dbGetAsync("SELECT CAST(strftime('%W', 'now', 'localtime', '-7 days') AS INTEGER) AS prev_week", []);
-                targetWeek = prevWeekActual.prev_week;
-            } else {
-                targetWeek = targetWeekCalc.current_week_num - 1;
-            }
-            console.log(`Calculated targetWeek: ${targetWeek} (current: ${targetWeekCalc.current_week_num})`);
-            // If targetWeek becomes -1 (current week 0), it won't match typical week_number values (0-53).
-            // The original query `week_number = strftime('%W', 'now') - 1` has this potential issue.
-            // For this task, we proceed with the calculated targetWeek.
-            // A more robust solution would involve year in the condition: `strftime('%Y-%W', ...)`.
-            // Given the constraint to match `week_number = strftime('%W', 'now') - 1`, we'll use that logic.
-            // The most direct interpretation for targetWeek is:
-            const targetWeekDirectQuery = await dbGetAsync("SELECT (CAST(strftime('%W', 'now', 'localtime') AS INTEGER) - 1) AS value", []);
-            targetWeek = targetWeekDirectQuery.value;
-            // This can result in -1 if current week is 0. The queries below would likely find nothing.
-            // This is consistent with the original flawed logic if `strftime('%W', 'now')` is '00'.
-        } else {
-            targetWeek = targetWeekRow.value; // Use week of 7 days ago.
-        }
-        // If targetWeek is -1 (because current week is 00), this means we are looking for week -1.
-        // This is usually not what's intended. The logs table for "previous week"
-        // would typically mean week 52/53 of the previous year.
-        // However, to stick to the original query `week_number = strftime('%W', 'now') - 1`:
-        const targetWeekFromOriginalLogic = await dbGetAsync("SELECT strftime('%W', 'now', 'localtime') - 1 AS value", []);
-        targetWeek = targetWeekFromOriginalLogic.value;
-        console.log('Target week for queries (based on strftime(\'%W\', \'now\') - 1):', targetWeek);
+            const currentWeekStats = await dbGetAsync("SELECT CAST(strftime('%W', 'now', 'localtime') AS INTEGER) AS weekNum", []);
 
+    if (currentWeekStats === undefined || currentWeekStats.weekNum === null) {
+      console.error("Could not determine current week number for /api/stats. Defaulting targetWeek to -99.");
+      targetWeek = -99; // Fallback to a value that likely yields no results
+      // Consider throwing an error for more explicit handling:
+      // throw new Error("Critical: Cannot determine current week number for statistics.");
+    } else if (currentWeekStats.weekNum === 0) {
+      // Current week is 00 (first week of year, Sunday-based). Target last week of previous year.
+      // SQLite's %W with 'start of year' and '-1 day' should give the last day of the previous year, then its week number.
+      const prevYearLastWeekData = await dbGetAsync("SELECT CAST(strftime('%W', 'now', 'localtime', 'start of year', '-1 day') AS INTEGER) AS value", []);
+      if (prevYearLastWeekData && prevYearLastWeekData.value !== null) {
+        targetWeek = prevYearLastWeekData.value;
+      } else  {
+               // Fallback if the specific query fails, e.g. very old SQLite or unusual setup
+        console.warn("Could not determine last week of previous year via SQLite strftime. Defaulting to 52.");
+        targetWeek = 52; 
+      }
+      console.log(`Current week is 00. Targeting last week of previous year: ${targetWeek}`);
+        } else {
+          targetWeek = currentWeekStats.weekNum - 1;
+        }
+        console.log('Target week for /api/stats queries:', targetWeek);
 
     const queryTotalLogs = `SELECT COUNT(*) as count FROM logs WHERE processed = FALSE AND week_number = ?`;
     const queryUrgentLogs = `SELECT COUNT(*) as count FROM logs WHERE severity = 'urgent' AND processed = FALSE AND week_number = ?`;
