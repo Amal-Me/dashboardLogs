@@ -6,6 +6,23 @@ const router = express.Router();
 const dbPath = path.resolve(__dirname, '../db/logs.db');
 const db = new sqlite3.Database(dbPath);
 
+// GET : récupérer tous les logs (limité à 5)
+router.get('/alllogs', (req, res) => {
+    const query = `
+      SELECT * FROM logs
+      ORDER BY timestamp DESC
+      LIMIT 5
+    `;
+  
+    db.all(query, [], (err, rows) => {
+      if (err) {
+        console.error("Error fetching all logs:", err.message);
+        return res.status(500).json({ error: err.message });
+      }
+      res.json(rows);
+    });
+  });
+
 // GET : récupérer les logs hebdo non traités
 router.get('/stats', (req, res) => {
   const query = `
