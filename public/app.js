@@ -71,7 +71,7 @@ class HomelabDashboard {
       this.charts.server = new Chart(ctx, {
         type: 'doughnut',
         data: {
-          labels: data.map(d => d.server_type.toUpperCase()),
+          labels: data.map(d => (d.server_type ? d.server_type.toUpperCase() : 'UNKNOWN')),
           datasets: [{
             data: data.map(d => d.count),
             backgroundColor: colors.slice(0, data.length),
