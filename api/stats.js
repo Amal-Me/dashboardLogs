@@ -42,6 +42,7 @@ router.get('/alllogs', (req, res) => {
   });
 });
 
+
 // GET : logs récents pour l'affichage brut dans la table
 router.get('/recentLogs/:limit', (req, res) => {
   const limit = parseInt(req.params.limit, 10) || 20;
@@ -83,6 +84,7 @@ router.get('/stats', async (req, res) => {
       targetWeek = currentWeekStats.weekNum - 1;
     }
     console.log('Target week for /api/stats queries:', targetWeek);
+
 
     const queryTotalLogs = `SELECT COUNT(*) as count FROM logs WHERE processed = FALSE AND week_number = ?`;
     const queryUrgentLogs = `SELECT COUNT(*) as count FROM logs WHERE severity = 'urgent' AND processed = FALSE AND week_number = ?`;

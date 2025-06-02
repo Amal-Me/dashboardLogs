@@ -18,6 +18,8 @@ class HomelabDashboard {
           fetch('/api/stats').then(r => r.json()),
           fetch('/api/recentLogs/20').then(r => r.json())
         ]);
+
+        console.log('Fetched recentLogs:', recentLogs);
   
         console.log('Fetched recentLogs:', recentLogs);
         this.updateStats(stats);
