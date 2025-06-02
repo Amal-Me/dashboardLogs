@@ -34,7 +34,7 @@ class HomelabDashboard {
       document.getElementById('totalLogs').textContent = total;
   
       const urgentCount = stats.recentUrgent?.[0]?.count ?? 0;
-      document.getElementById('urgentCount').textContent = urgentCount;
+      document.getElementById('urgentLogs').textContent = urgentCount;
   
       const globalStatus = document.getElementById('globalStatus');
       if (urgentCount > 5) {
@@ -132,7 +132,7 @@ class HomelabDashboard {
           <td>${new Date(log.timestamp).toLocaleString()}</td>
           <td>${log.server_type}</td>
           <td>${log.severity}</td>
-          <td><pre>${JSON.stringify(log.raw_logs, null, 2)}</pre></td>
+          <td><pre>${JSON.stringify(JSON.parse(log.raw_logs), null, 2)}</pre></td>
         `;
         tbody.appendChild(row);
       });
