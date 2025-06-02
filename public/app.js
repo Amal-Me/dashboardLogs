@@ -33,11 +33,9 @@ class HomelabDashboard {
   
     updateStats(stats) {
       // Sécurise l'accès au tableau
-      //const total = stats.totalLogs?.[0]?.count ?? 0;
       const total = stats.totalLogsCount ?? 0;
       document.getElementById('totalLogs').textContent = total;
   
-      //const urgentCount = stats.recentUrgent?.[0]?.count ?? 0;
       const urgentCount = stats.urgentLogsCount ?? 0;
       document.getElementById('urgentLogs').textContent = urgentCount;
   

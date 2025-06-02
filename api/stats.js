@@ -25,25 +25,8 @@ function dbGetAsync(query, params) {
   });
 }
 
-// GET : récupérer tous les logs (limité à 5)
+// GET : récupérer tous les logs (limité à 5) - for diagnostics
 router.get('/alllogs', (req, res) => {
-    const query = `
-      SELECT * FROM logs
-      ORDER BY timestamp DESC
-      LIMIT 5
-    `;
-  
-    db.all(query, [], (err, rows) => {
-      if (err) {
-        console.error("Error fetching all logs:", err.message);
-        return res.status(500).json({ error: err.message });
-      }
-      res.json(rows);
-    });
-  });
-
-// GET : récupérer les logs hebdo non traités
-router.get('/stats', (req, res) => {
   const query = `
     SELECT * FROM logs
     ORDER BY timestamp DESC
@@ -58,6 +41,7 @@ router.get('/stats', (req, res) => {
     res.json(rows);
   });
 });
+
 
 // GET : logs récents pour l'affichage brut dans la table
 router.get('/recentLogs/:limit', (req, res) => {
@@ -76,9 +60,8 @@ router.get('/recentLogs/:limit', (req, res) => {
 // GET : statistiques agrégées pour le dashboard
 router.get('/stats', async (req, res) => {
   try {
-    
-            let targetWeek;
-            const currentWeekStats = await dbGetAsync("SELECT CAST(strftime('%W', 'now', 'localtime') AS INTEGER) AS weekNum", []);
+    let targetWeek;
+    const currentWeekStats = await dbGetAsync("SELECT CAST(strftime('%W', 'now', 'localtime') AS INTEGER) AS weekNum", []);
 
     if (currentWeekStats === undefined || currentWeekStats.weekNum === null) {
       console.error("Could not determine current week number for /api/stats. Defaulting targetWeek to -99.");
@@ -91,16 +74,17 @@ router.get('/stats', async (req, res) => {
       const prevYearLastWeekData = await dbGetAsync("SELECT CAST(strftime('%W', 'now', 'localtime', 'start of year', '-1 day') AS INTEGER) AS value", []);
       if (prevYearLastWeekData && prevYearLastWeekData.value !== null) {
         targetWeek = prevYearLastWeekData.value;
-      } else  {
-               // Fallback if the specific query fails, e.g. very old SQLite or unusual setup
+      } else {
+        // Fallback if the specific query fails, e.g. very old SQLite or unusual setup
         console.warn("Could not determine last week of previous year via SQLite strftime. Defaulting to 52.");
-        targetWeek = 52; 
+        targetWeek = 52;
       }
       console.log(`Current week is 00. Targeting last week of previous year: ${targetWeek}`);
-        } else {
-          targetWeek = currentWeekStats.weekNum - 1;
-        }
-        console.log('Target week for /api/stats queries:', targetWeek);
+    } else {
+      targetWeek = currentWeekStats.weekNum - 1;
+    }
+    console.log('Target week for /api/stats queries:', targetWeek);
+
 
     const queryTotalLogs = `SELECT COUNT(*) as count FROM logs WHERE processed = FALSE AND week_number = ?`;
     const queryUrgentLogs = `SELECT COUNT(*) as count FROM logs WHERE severity = 'urgent' AND processed = FALSE AND week_number = ?`;
