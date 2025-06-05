@@ -14,7 +14,7 @@ db.serialize(() => {
       server_type TEXT,
       severity TEXT,
       raw_logs TEXT,
-      week_number INTEGER DEFAUT,
+      week_number INTEGER DEFAULT,
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
       processed BOOLEAN DEFAULT FALSE
     )
